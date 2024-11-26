@@ -3,91 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>opentemp</title>
+    <title>OpenTemp</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            min-height: 100vh;
+            background: linear-gradient(to bottom, #88C3EC, #0099BC);
+            overflow: visible;
+            font-family: sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #87CEEB;
-            background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M96.534,30.47c-2.894-2.894-6.774-4.341-10.653-4.341c-3.108,0-6.216,0.938-8.856,2.814c-0.938-3.88-3.88-7.132-7.76-8.698c-3.88-1.566-8.221-0.938-11.591,1.566c-3.37,2.504-5.278,6.384-5.278,10.653c0,0.938,0.098,1.876,0.293,2.814c-4.818-0.938-9.636,0.938-12.53,4.818c-2.894,3.88-3.37,9.046-1.214,13.374c2.156,4.328,6.774,7.132,11.591,7.132h36.326c7.76,0,14.072-6.312,14.072-14.072C100.934,37.244,99.428,33.364,96.534,30.47z" fill="%23ffffff" fill-opacity="0.4"/%3E%3C/svg%3E');
-            background-repeat: repeat;
-            animation: animateBackground 60s linear infinite;
+            min-height: 100vh;
+            position: relative;
         }
 
-        @keyframes animateBackground {
-            from {
-                background-position: 0 0;
-            }
-            to {
-                background-position: 100% 0;
-            }
+        .clouds {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://www.vecteezy.com/vector-art/138079-vector-clouds-icon-collection');
+            background-size: cover;
+            animation: moveClouds 20s linear infinite;
         }
 
-        .container {
-            background-color: rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
+        .island {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
             padding: 40px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 400px;
-            width: 90%;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            width: 300px;
+            max-width: 90%;
+            position: relative;
         }
 
         h1 {
+            text-align: center;
+            padding: 10px 0;
+            font-size: 2em;
             color: #333;
-            margin-bottom: 20px;
         }
 
-        input,
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
         button {
             width: 100%;
             padding: 10px;
-            margin-bottom: 10px;
-            border: none;
+            margin: 10px 0;
+            border: 1px solid #ccc;
             border-radius: 5px;
-        }
-
-        button {
-            background-color: #4CAF50;
-            color: white;
+            background-color: #333;
+            color: #fff;
             cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        button:hover {
-            background-color: #45a049;
         }
 
         #weather-info {
             margin-top: 20px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>opentemp</h1>
+    <div class="clouds"></div>
+    <div class="island">
+        <h1>OpenTemp</h1>
         <input type="text" id="city-input" placeholder="Enter city name">
+        <select id="unit-select">
+            <option value="celsius">Celsius</option>
+            <option value="fahrenheit">Fahrenheit</option>
+        </select>
         <button onclick="getWeather()">Get Weather</button>
         <div id="weather-info"></div>
     </div>
 
     <script>
-        document.getElementById('city-input').addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                getWeather();
-            }
-        });
-
         async function getWeather() {
             const cityInput = document.getElementById('city-input');
+            const unitSelect = document.getElementById('unit-select');
             const weatherInfo = document.getElementById('weather-info');
             const city = cityInput.value;
+            const unit = unitSelect.value;
 
             if (!city) {
                 alert('Please enter a city name');
@@ -95,56 +100,66 @@
             }
 
             try {
-                // get the the city
-                const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`);
-                const geoData = await geoResponse.json();
 
-                if (!geoData.results || geoData.results.length === 0) {
-                    throw new Error('Error: City not found');
+                const locationResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}`);
+                const locationData = await locationResponse.json();
+
+                if (locationData.results.length === 0) {
+                    weatherInfo.textContent = 'City not found';
+                    return;
                 }
 
-                const { latitude, longitude } = geoData.results[0];
+                const latitude = locationData.results[0].latitude;
+                const longitude = locationData.results[0].longitude;
 
-                // get the weather data
+
                 const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
                 const weatherData = await weatherResponse.json();
 
-                const temperature = weatherData.current_weather.temperature;
-                const weathercode = weatherData.current_weather.weathercode;
 
-                const weatherDescription = getWeatherDescription(weathercode);
+                let temperature = weatherData.current_weather.temperature;
+                const description = weatherData.current_weather.weathercode;
 
-                weatherInfo.innerHTML = `
-                    <h2>Weather in ${city}</h2>
-                    <p>Temperature: ${temperature}°C</p>
-                    <p>Weather: ${weatherDescription}</p>
-                `;
+                if (unit === "fahrenheit") {
+                    temperature = (temperature * 9/5) + 32;
+                }
+
+                const weatherDescriptions = {
+                    0: "Clear sky",
+                    1: "Mainly clear",
+                    2: "Partly cloudy",
+                    3: "Overcast",
+                    45: "Fog",
+                    48: "Depositing rime fog",
+                    51: "Light drizzle",
+                    53: "Moderate drizzle",
+                    55: "Dense drizzle",
+                    56: "Light freezing drizzle",
+                    57: "Dense freezing drizzle",
+                    61: "Slight rain",
+                    63: "Moderate rain",
+                    65: "Heavy rain",
+                    66: "Light freezing rain",
+                    67: "Heavy freezing rain",
+                    71: "Slight snow fall",
+                    73: "Moderate snow fall",
+                    75: "Heavy snow fall",
+                    77: "Snow grains",
+                    80: "Slight rain showers",
+                    81: "Moderate rain showers",
+                    82: "Violent rain showers",
+                    85: "Slight snow showers",
+                    86: "Heavy snow showers",
+                    95: "Thunderstorm",
+                    96: "Thunderstorm with slight hail",
+                    99: "Thunderstorm with heavy hail"
+                };
+
+                weatherInfo.textContent = `${temperature}°${unit.toUpperCase()} - ${weatherDescriptions[description]}`;
             } catch (error) {
-                weatherInfo.innerHTML = `<p>Error: ${error.message}</p>`;
+                console.error('Error fetching weather data:', error);
+                weatherInfo.textContent = 'Error fetching weather data. Please try again later.';
             }
-        }
-
-        function getWeatherDescription(code) {
-            const weatherCodes = {
-                0: 'Clear sky',
-                1: 'Mainly clear',
-                2: 'Partly cloudy',
-                3: 'Overcast',
-                45: 'Fog',
-                48: 'Depositing rime fog',
-                51: 'Light drizzle',
-                53: 'Moderate drizzle',
-                55: 'Dense drizzle',
-                61: 'Slight rain',
-                63: 'Moderate rain',
-                65: 'Heavy rain',
-                71: 'Slight snow fall',
-                73: 'Moderate snow fall',
-                75: 'Heavy snow fall',
-                95: 'Thunderstorm'
-            };
-
-            return weatherCodes[code] || 'Unknown';
         }
     </script>
 </body>
