@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenTemp</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
         body {
             margin: 0;
@@ -71,22 +72,31 @@
             margin-top: 20px;
             text-align: center;
         }
+
+        #map {
+            height: 300px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="clouds"></div>
     <div class="island">
         <h1>OpenTemp</h1>
-        <input type="text" id="city-input" placeholder="Enter city name">
+        <input type="text" id="city-input" placeholder="Enter a city name">
         <select id="unit-select">
             <option value="celsius">Celsius</option>
             <option value="fahrenheit">Fahrenheit</option>
         </select>
-        <button onclick="getWeather()">Get Weather</button>
+        <button onclick="getWeather()">Get Weather data!</button>
         <div id="weather-info"></div>
+        <div id="map"></div>
     </div>
 
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
+        let map;
+
         async function getWeather() {
             const cityInput = document.getElementById('city-input');
             const unitSelect = document.getElementById('unit-select');
@@ -100,12 +110,11 @@
             }
 
             try {
-
                 const locationResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}`);
                 const locationData = await locationResponse.json();
 
                 if (locationData.results.length === 0) {
-                    weatherInfo.textContent = 'City not found';
+                    weatherInfo.textContent = 'We couldnt find that city!';
                     return;
                 }
 
@@ -113,53 +122,76 @@
                 const longitude = locationData.results[0].longitude;
 
 
+                if (!map) {
+                    map = L.map('map').setView([latitude, longitude], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(map);
+                } else {
+                    map.setView([latitude, longitude], 13);
+                }
+
+
                 const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
                 const weatherData = await weatherResponse.json();
 
-
                 let temperature = weatherData.current_weather.temperature;
-                const description = weatherData.current_weather.weathercode;
+                const descriptionCode = weatherData.current_weather.weathercode;
+                const windSpeed = weatherData.current_weather.windspeed;
+                const windDirection = weatherData.current_weather.winddirection;
 
                 if (unit === "fahrenheit") {
-                    temperature = (temperature * 9/5) + 32;
+                    temperature = (temperature * 9 / 5) + 32;
                 }
 
-                const weatherDescriptions = {
-                    0: "Clear sky",
-                    1: "Mainly clear",
-                    2: "Partly cloudy",
-                    3: "Overcast",
-                    45: "Fog",
-                    48: "Depositing rime fog",
-                    51: "Light drizzle",
-                    53: "Moderate drizzle",
-                    55: "Dense drizzle",
-                    56: "Light freezing drizzle",
-                    57: "Dense freezing drizzle",
-                    61: "Slight rain",
-                    63: "Moderate rain",
-                    65: "Heavy rain",
-                    66: "Light freezing rain",
-                    67: "Heavy freezing rain",
-                    71: "Slight snow fall",
-                    73: "Moderate snow fall",
-                    75: "Heavy snow fall",
-                    77: "Snow grains",
-                    80: "Slight rain showers",
-                    81: "Moderate rain showers",
-                    82: "Violent rain showers",
-                    85: "Slight snow showers",
-                    86: "Heavy snow showers",
-                    95: "Thunderstorm",
-                    96: "Thunderstorm with slight hail",
-                    99: "Thunderstorm with heavy hail"
-                };
+                weatherInfo.innerHTML = `
+                    <p><b>Weather in ${city}:</b></p>
+                    <p>Temperature: ${temperature.toFixed(1)}°${unit}</p>
+                    <p>Description: ${getDescription(descriptionCode)}</p>
+                    <p>Wind Speed: ${windSpeed} m/s</p>
+                    <p>Wind Direction: ${windDirection}°</p>
+                `;
 
-                weatherInfo.textContent = `${temperature}°${unit.toUpperCase()} - ${weatherDescriptions[description]}`;
+
+                L.marker([latitude, longitude])
+                    .addTo(map)
+                    .bindPopup(`<b>${city}</b><br>${temperature.toFixed(1)}°${unit}<br>${getDescription(descriptionCode)}`)
+                    .openPopup();
             } catch (error) {
                 console.error('Error fetching weather data:', error);
-                weatherInfo.textContent = 'Error fetching weather data. Please try again later.';
+                weatherInfo.textContent = 'Error fetching weather data';
             }
+        }
+
+        function getDescription(code) {
+            const weatherCodes = {
+                0: "Clear sky",
+                1: "Mainly clear",
+                2: "Partly cloudy",
+                3: "Overcast",
+                45: "Fog",
+                60: "Light rain shower",
+                61: "Moderate rain shower",
+                63: "Heavy rain shower",
+                65: "Light rain",
+                66: "Moderate rain",
+                67: "Heavy rain",
+                71: "Snow fall",
+                73: "Snow shower",
+                75: "Snow",
+                77: "Snow grains",
+                80: "Slight rain showers",
+                81: "Moderate rain showers",
+                82: "Violent rain showers",
+                85: "Slight snow showers",
+                86: "Moderate snow showers",
+                87: "Violent snow showers",
+                95: "Thunderstorm",
+                96: "Thunderstorm with slight hail",
+                99: "Thunderstorm with heavy hail"
+            };
+
+            return weatherCodes[code] || "Unknown";
         }
     </script>
 </body>
