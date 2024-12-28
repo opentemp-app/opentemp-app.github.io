@@ -5,33 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenTemp</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="icon" href="https://i.ibb.co/nwTPJcP/clouds.png" type="image/x-icon">
+    <link rel="shortcut icon" href="https://i.ibb.co/nwTPJcP/clouds.png" type="image/x-icon">
+    <link rel="apple-touch-icon" href="https://i.ibb.co/nwTPJcP/clouds.png">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
-        body {
+                body {
+            font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background: linear-gradient(to bottom, #88C3EC, #0099BC);
-            overflow: visible;
-            font-family: sans-serif;
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            position: relative;
-        }
-
-        .clouds {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: url('https://www.vecteezy.com/vector-art/138079-vector-clouds-icon-collection');
-            background-size: cover;
-            animation: moveClouds 20s linear infinite;
-        }
+            background-color: #87CEEB;
+            background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M96.534,30.47c-2.894-2.894-6.774-4.341-10.653-4.341c-3.108,0-6.216,0.938-8.856,2.814c-0.938-3.88-3.88-7.132-7.76-8.698c-3.88-1.566-8.221-0.938-11.591,1.566c-3.37,2.504-5.278,6.384-5.278,10.653c0,0.938,0.098,1.876,0.293,2.814c-4.818-0.938-9.636,0.938-12.53,4.818c-2.894,3.88-3.37,9.046-1.214,13.374c2.156,4.328,6.774,7.132,11.591,7.132h36.326c7.76,0,14.072-6.312,14.072-14.072C100.934,37.244,99.428,33.364,96.534,30.47z" fill="%23ffffff" fill-opacity="0.4"/%3E%3C/svg%3E');
 
         .island {
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: rgba(25, 25, 25, 0.9);
             border-radius: 15px;
             padding: 40px;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
@@ -45,7 +36,7 @@
             text-align: center;
             padding: 10px 0;
             font-size: 2em;
-            color: #333;
+            color: #ffffff;
         }
 
         input, select {
@@ -89,6 +80,7 @@
             <option value="fahrenheit">Fahrenheit</option>
         </select>
         <button onclick="getWeather()">Get Weather data!</button>
+        <button onclick="getMyLocationWeather()">Get My Location's Weather (won't work right with a proxy/VPN)</button>
         <div id="weather-info"></div>
         <div id="map"></div>
     </div>
@@ -97,74 +89,134 @@
     <script>
         let map;
 
-        async function getWeather() {
-            const cityInput = document.getElementById('city-input');
-            const unitSelect = document.getElementById('unit-select');
-            const weatherInfo = document.getElementById('weather-info');
-            const city = cityInput.value;
-            const unit = unitSelect.value;
+async function getWeather() {
+    const cityInput = document.getElementById('city-input');
+    const unitSelect = document.getElementById('unit-select');
+    const weatherInfo = document.getElementById('weather-info');
+    const city = sanitizeInput(cityInput.value);
+    const unit = unitSelect.value;
 
-            if (!city) {
-                alert('Please enter a city name');
-                return;
-            }
+    if (!city) {
+        alert('Please enter a city name');
+        return;
+    }
 
-            try {
-                const locationResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}`);
-                const locationData = await locationResponse.json();
+    try {
+        const locationResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}`);
+        const locationData = await locationResponse.json();
 
-                if (locationData.results.length === 0) {
-                    weatherInfo.textContent = 'We couldnt find that city!';
-                    return;
-                }
-
-                const latitude = locationData.results[0].latitude;
-                const longitude = locationData.results[0].longitude;
-
-
-                if (!map) {
-                    map = L.map('map').setView([latitude, longitude], 13);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    }).addTo(map);
-                } else {
-                    map.setView([latitude, longitude], 13);
-                }
-
-
-                const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
-                const weatherData = await weatherResponse.json();
-
-                let temperature = weatherData.current_weather.temperature;
-                const descriptionCode = weatherData.current_weather.weathercode;
-                const windSpeed = weatherData.current_weather.windspeed;
-                const windDirection = weatherData.current_weather.winddirection;
-
-                if (unit === "fahrenheit") {
-                    temperature = (temperature * 9 / 5) + 32;
-                }
-
-                weatherInfo.innerHTML = `
-                    <p><b>Weather in ${city}:</b></p>
-                    <p>Temperature: ${temperature.toFixed(1)}°${unit}</p>
-                    <p>Description: ${getDescription(descriptionCode)}</p>
-                    <p>Wind Speed: ${windSpeed} m/s</p>
-                    <p>Wind Direction: ${windDirection}°</p>
-                `;
-
-
-                L.marker([latitude, longitude])
-                    .addTo(map)
-                    .bindPopup(`<b>${city}</b><br>${temperature.toFixed(1)}°${unit}<br>${getDescription(descriptionCode)}`)
-                    .openPopup();
-            } catch (error) {
-                console.error('Error fetching weather data:', error);
-                weatherInfo.textContent = 'Error fetching weather data';
-            }
+        if (locationData.results.length === 0) {
+            weatherInfo.textContent = 'We couldn\'t find that city!';
+            return;
         }
 
-        function getDescription(code) {
-            const weatherCodes = {
+        const latitude = locationData.results[0].latitude;
+        const longitude = locationData.results[0].longitude;
+
+        updateMap(latitude, longitude);
+
+        const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+        const weatherData = await weatherResponse.json();
+
+        displayWeatherInfo(weatherData, city, unit);
+    } catch (error) {
+        console.error('Error fetching weather data:', error);
+        weatherInfo.textContent = 'Error fetching weather data';
+    }
+}
+
+async function getMyLocationWeather() {
+    const weatherInfo = document.getElementById('weather-info');
+
+    try {
+        const ipResponse = await fetch('https://ipapi.co/json/');
+        const ipData = await ipResponse.json();
+
+        const latitude = ipData.latitude;
+        const longitude = ipData.longitude;
+
+        updateMap(latitude, longitude);
+
+        const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+        const weatherData = await weatherResponse.json();
+
+        const city = escapeHtml(ipData.city);
+        const unit = document.getElementById('unit-select').value;
+
+        displayWeatherInfo(weatherData, city, unit);
+    } catch (error) {
+        console.error('Error fetching location or weather data:', error);
+        weatherInfo.textContent = 'Error fetching location or weather data';
+    }
+}
+
+function updateMap(latitude, longitude) {
+    if (!map) {
+        map = L.map('map').setView([latitude, longitude], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+    } else {
+        map.setView([latitude, longitude], 13);
+    }
+
+
+    map.eachLayer((layer) => {
+        if (layer instanceof L.Marker) {
+            map.removeLayer(layer);
+        }
+    });
+
+    L.marker([latitude, longitude])
+        .addTo(map)
+        .bindPopup(`Location: ${latitude}, ${longitude}`)
+        .openPopup();
+}
+
+function displayWeatherInfo(weatherData, city, unit) {
+    const weatherInfo = document.getElementById('weather-info');
+    let temperature = weatherData.current_weather.temperature;
+    const descriptionCode = weatherData.current_weather.weathercode;
+    const windSpeed = weatherData.current_weather.windspeed;
+    const windDirection = weatherData.current_weather.winddirection;
+
+    if (unit === "fahrenheit") {
+        temperature = (temperature * 9 / 5) + 32;
+    }
+
+    weatherInfo.innerHTML = `
+        <p><b>Weather in ${escapeHtml(city)}:</b></p>
+        <p>Temperature: ${temperature.toFixed(1)}°${unit}</p>
+        <p>Description: ${getDescription(descriptionCode)}</p>
+        <p>Wind Speed: ${windSpeed} m/s</p>
+        <p>Wind Direction: ${windDirection}°</p>
+    `;
+}
+
+
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function sanitizeInput(input) {
+    return input.trim();
+
+    weatherInfo.innerHTML = `
+        <p><b>Weather in ${city}:</b></p>
+        <p>Temperature: ${temperature.toFixed(1)}ÃÂ°${unit}</p>
+        <p>Description: ${getDescription(descriptionCode)}</p>
+        <p>Wind Speed: ${windSpeed} m/s</p>
+        <p>Wind Direction: ${windDirection}ÃÂ°</p>
+    `;
+}
+
+function getDescription(code) {
+    const weatherCodes = {
                 0: "Clear sky",
                 1: "Mainly clear",
                 2: "Partly cloudy",
@@ -191,8 +243,7 @@
                 99: "Thunderstorm with heavy hail"
             };
 
-            return weatherCodes[code] || "Unknown";
+           return weatherCodes[code] || "Unknown";
         }
-    </script>
-</body>
-</html>
+           </script>
+            </body>
